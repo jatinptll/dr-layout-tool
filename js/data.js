@@ -1,79 +1,137 @@
 /* ============================================================
-   Data Module — House data management with localStorage
+   Data Module — Supabase-backed house data with realtime cache
    ============================================================ */
 
-const STORAGE_KEY = 'duke_realty_houses';
+import { requireSupabase } from './supabase.js';
 
-// ---------- Schema ----------
+const PROJECTS = {
+  antonia: 34,
+  aranya: 68,
+};
+
+const COLUMN_TO_FIELD = {
+  house_number: 'id',
+  plot_size: 'plotSize',
+  customer_name: 'customerName',
+  customer_phone: 'customerPhone',
+  booking_date: 'bookingDate',
+  payment_status: 'paymentStatus',
+  construction_stage: 'constructionStage',
+  pending_work: 'pendingWork',
+  material_status: 'materialStatus',
+  contractor_name: 'contractorName',
+  site_notes: 'siteNotes',
+  target_date: 'targetDate',
+  cost_price: 'costPrice',
+  profit_margin: 'profitMargin',
+  internal_notes: 'internalNotes',
+};
+
+const FIELD_TO_COLUMN = Object.fromEntries(
+  Object.entries(COLUMN_TO_FIELD).map(([column, field]) => [field, column]),
+);
+
+let cache = generateSeedData();
+let lastLoadPromise = null;
 
 function createDefaultHouse(project, id) {
   return {
     id,
     project,
-    // Common
     plotSize: '',
     facing: '',
     type: '',
-    // Sales
-    status: 'available', // 'available' or 'booked'
+    status: 'available',
     price: '',
     customerName: '',
     customerPhone: '',
     bookingDate: '',
     paymentStatus: '',
-    // Site / Construction
     constructionStage: '',
     pendingWork: '',
     materialStatus: '',
     contractorName: '',
     siteNotes: '',
     targetDate: '',
-    // Admin only
     costPrice: '',
     profitMargin: '',
     internalNotes: '',
   };
 }
 
-// ---------- Seed Data ----------
-
 function generateSeedData() {
   const data = { antonia: {}, aranya: {} };
-
-  // Antonia: 34 houses
-  for (let i = 1; i <= 34; i++) {
-    data.antonia[i] = createDefaultHouse('antonia', i);
+  for (const [project, count] of Object.entries(PROJECTS)) {
+    for (let id = 1; id <= count; id += 1) {
+      data[project][id] = createDefaultHouse(project, id);
+    }
   }
-
-  // Aranya: 68 houses
-  for (let i = 1; i <= 68; i++) {
-    data.aranya[i] = createDefaultHouse('aranya', i);
-  }
-
   return data;
 }
 
-// ---------- Init ----------
+function rowToHouse(row) {
+  const house = createDefaultHouse(row.project, Number(row.house_number));
 
-export function initData() {
-  if (!localStorage.getItem(STORAGE_KEY)) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(generateSeedData()));
+  for (const [key, value] of Object.entries(row)) {
+    if (key === 'project') {
+      house.project = value;
+    } else if (key === 'house_number') {
+      house.id = Number(value);
+    } else {
+      const field = COLUMN_TO_FIELD[key] || key;
+      if (field in house) house[field] = value ?? '';
+    }
   }
+
+  return house;
 }
 
-// ---------- Read ----------
-
-function getAllData() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || generateSeedData();
-  } catch {
-    return generateSeedData();
+function houseToDbPatch(house) {
+  const patch = {};
+  for (const [field, value] of Object.entries(house)) {
+    if (field === 'id' || field === 'project') continue;
+    const column = FIELD_TO_COLUMN[field] || field;
+    patch[column] = value ?? '';
   }
+  return patch;
+}
+
+function applyHouseToCache(house) {
+  if (!cache[house.project]) cache[house.project] = {};
+  cache[house.project][house.id] = { ...createDefaultHouse(house.project, house.id), ...house };
+}
+
+function applyRows(rows) {
+  const next = generateSeedData();
+  for (const row of rows || []) {
+    const house = rowToHouse(row);
+    if (!next[house.project]) next[house.project] = {};
+    next[house.project][house.id] = house;
+  }
+  cache = next;
+}
+
+export async function initData() {
+  if (!lastLoadPromise) {
+    lastLoadPromise = loadHouses().finally(() => {
+      lastLoadPromise = null;
+    });
+  }
+  return lastLoadPromise;
+}
+
+export async function loadHouses() {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('get_houses_for_current_user');
+  if (error) {
+    throw new Error(error.message || 'Unable to load house data from Supabase.');
+  }
+  applyRows(data);
+  return cache;
 }
 
 export function getHouses(project) {
-  const data = getAllData();
-  return data[project] || {};
+  return cache[project] || {};
 }
 
 export function getHouse(project, id) {
@@ -85,8 +143,6 @@ export function getHousesList(project) {
   const houses = getHouses(project);
   return Object.values(houses).sort((a, b) => a.id - b.id);
 }
-
-// ---------- Role-filtered Read ----------
 
 const COMMON_FIELDS = ['id', 'project', 'plotSize', 'facing', 'type', 'status'];
 const SALES_FIELDS = [...COMMON_FIELDS, 'price', 'customerName', 'customerPhone', 'bookingDate', 'paymentStatus'];
@@ -156,7 +212,6 @@ export function getEditableFields(role) {
     ];
   }
 
-  // site role
   return [
     { section: 'General', fields: [
       { key: 'plotSize', label: 'Plot Size', type: 'text', readonly: true },
@@ -175,23 +230,33 @@ export function getEditableFields(role) {
   ];
 }
 
-// ---------- Write ----------
+export async function updateHouse(project, id, updates) {
+  const client = requireSupabase();
+  const payload = houseToDbPatch(updates);
 
-export function updateHouse(project, id, updates) {
-  const data = getAllData();
-  if (!data[project]) data[project] = {};
-  if (!data[project][id]) data[project][id] = createDefaultHouse(project, id);
+  const { data, error } = await client.rpc('update_house', {
+    h_project: project,
+    h_house_number: Number(id),
+    h_updates: payload,
+  });
 
-  Object.assign(data[project][id], updates);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  return data[project][id];
+  if (error) {
+    throw new Error(error.message || `Unable to update house ${id}.`);
+  }
+
+  const updated = Array.isArray(data) ? data[0] : data;
+  if (updated) {
+    const house = rowToHouse(updated);
+    applyHouseToCache(house);
+    return house;
+  }
+
+  await loadHouses();
+  return getHouse(project, id);
 }
 
-// ---------- Export / Import ----------
-
 export function exportData() {
-  const data = getAllData();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(cache, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -200,24 +265,35 @@ export function exportData() {
   URL.revokeObjectURL(url);
 }
 
-export function importData(jsonString) {
+export async function importData(jsonString) {
   try {
     const data = JSON.parse(jsonString);
     if (!data.antonia || !data.aranya) {
       throw new Error('Invalid data format');
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    for (const [project, houses] of Object.entries(data)) {
+      for (const [id, house] of Object.entries(houses)) {
+        await updateHouse(project, Number(id), house);
+      }
+    }
+
+    await loadHouses();
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
   }
 }
 
-export function resetData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(generateSeedData()));
+export async function resetData() {
+  const defaults = generateSeedData();
+  for (const [project, houses] of Object.entries(defaults)) {
+    for (const [id, house] of Object.entries(houses)) {
+      await updateHouse(project, Number(id), house);
+    }
+  }
+  cache = defaults;
 }
-
-// ---------- Stats ----------
 
 export function getProjectStats(project) {
   const houses = getHousesList(project);
@@ -225,4 +301,35 @@ export function getProjectStats(project) {
   const available = houses.filter(h => h.status === 'available').length;
   const booked = houses.filter(h => h.status === 'booked').length;
   return { total, available, booked };
+}
+
+export function subscribeToHouseChanges(onChange) {
+  const client = requireSupabase();
+  let refreshTimer = null;
+
+  const refresh = () => {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = window.setTimeout(async () => {
+      try {
+        await loadHouses();
+        onChange?.();
+      } catch (error) {
+        console.error('Realtime refresh failed', error);
+      }
+    }, 150);
+  };
+
+  const channel = client
+    .channel('duke-realty-house-changes')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'house_change_events' },
+      refresh,
+    )
+    .subscribe();
+
+  return () => {
+    window.clearTimeout(refreshTimer);
+    client.removeChannel(channel);
+  };
 }

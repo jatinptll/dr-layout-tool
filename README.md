@@ -9,6 +9,15 @@ npm install
 npm run dev
 ```
 
+Copy `.env.example` to `.env.local` and set:
+
+```sh
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+
+Run `supabase/schema.sql` in the Supabase SQL Editor before signing in.
+
 ## Production Build
 
 ```sh
@@ -24,6 +33,27 @@ Deploy the generated `dist/` directory to a static host such as Netlify, Vercel,
 - Publish directory: `dist`
 - Routing: the app uses hash routes, and `public/_redirects` is included for static-host SPA fallback.
 - GitHub Pages: `.github/workflows/pages.yml` builds and deploys `dist/` after pushes to `main` or `master`.
+- Vercel environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 - Branding assets live in `public/duke-realty-logo.png` with generated icon assets for favicons and installable app metadata.
-- The current login is client-side role gating for a static app. For a public production deployment with sensitive data, replace it with server-backed authentication and authorization.
+- Authentication and shared data are backed by Supabase Auth/Postgres. Role profiles are stored in `public.user_profiles`.
 - See `SECURITY_DEPLOYMENT.md` before deploying for company use.
+
+## Supabase Setup
+
+1. Create a Supabase project.
+2. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor.
+3. Create users in `Authentication > Users`.
+4. Add each user to `public.user_profiles` with role `admin`, `sales`, or `site`.
+5. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel.
+
+Example profile insert after creating a user:
+
+```sql
+insert into public.user_profiles (id, role, name, label)
+values (
+  (select id from auth.users where email = 'owner@example.com'),
+  'admin',
+  'Admin',
+  'Administrator'
+);
+```

@@ -200,21 +200,31 @@ function startInlineEdit(valueEl, project, id, field, onUpdate) {
 
   input.focus();
 
-  const save = () => {
+  const save = async () => {
     const newVal = input.value;
-    updateHouse(project, id, { [field.key]: newVal });
-    valueEl.textContent = newVal || '—';
-    valueEl.classList.add('editable');
-    valueEl.classList.toggle('empty', !newVal);
-    if (onUpdate) onUpdate(project, id);
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
 
-    // If status changed, refresh the popup
-    if (field.key === 'status') {
-      const badge = document.querySelector('.popup-header .status-badge');
-      if (badge) {
-        badge.className = `status-badge ${newVal}`;
-        badge.textContent = newVal === 'booked' ? 'Booked' : 'Available';
+    try {
+      await updateHouse(project, id, { [field.key]: newVal });
+      valueEl.textContent = newVal || '—';
+      valueEl.classList.add('editable');
+      valueEl.classList.toggle('empty', !newVal);
+      if (onUpdate) onUpdate(project, id);
+
+      // If status changed, refresh the popup
+      if (field.key === 'status') {
+        const badge = document.querySelector('.popup-header .status-badge');
+        if (badge) {
+          badge.className = `status-badge ${newVal}`;
+          badge.textContent = newVal === 'booked' ? 'Booked' : 'Available';
+        }
       }
+    } catch (error) {
+      alert(error.message || 'Unable to save changes.');
+      valueEl.textContent = rawVal || '—';
+      valueEl.classList.add('editable');
+      valueEl.classList.toggle('empty', !rawVal);
     }
   };
 

@@ -2,39 +2,52 @@
 
 ## Current Status
 
-This project is ready for a static demo deployment, but it is not secure enough for a company production system that stores private customer, booking, pricing, construction, or internal notes.
+This app now uses Supabase Auth and Supabase Postgres for shared booking data.
 
 The current app uses:
 
-- Client-side demo credentials in `js/auth.js`
-- `sessionStorage` for login state
-- `localStorage` for house/customer/project data
-- Client-side role filtering
+- Supabase Auth for user sessions.
+- Supabase Postgres for house, booking, construction, and internal data.
+- Role profiles in `public.user_profiles`.
+- Postgres RPC functions for role-filtered reads and admin-only writes.
+- A non-sensitive `house_change_events` table for realtime refreshes.
 
-That means a public deployment must be treated as a demo/read-only prototype unless it is placed behind a real access-control layer.
+Do not deploy without running `supabase/schema.sql` and adding production Supabase environment variables.
 
-## Safe Deployment Options
+## Required Supabase Setup
 
-For immediate internal review:
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in the Supabase SQL Editor.
+3. Create real users in `Authentication > Users`.
+4. Insert each user's profile in `public.user_profiles` with role `admin`, `sales`, or `site`.
+5. Add Vercel environment variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
 
-- Deploy `dist/` behind platform-level access protection.
-- Recommended: Cloudflare Access, Vercel Deployment Protection, Netlify password protection, VPN, or an authenticated reverse proxy.
-- Do not enter real customer phone numbers, prices, internal notes, or private booking details into this static build.
+Never add a Supabase service-role key to this frontend or to any `VITE_` environment variable.
 
-For company production:
+## Access Control
 
-- Move authentication to a server or managed identity provider.
-- Store house/customer data in a server-side database.
-- Enforce roles on the server, not in browser code.
-- Remove demo passwords from shipped JavaScript.
-- Add audit logs and backups for booking/admin changes.
+For company use, keep one of these enabled until the access model is finalized:
+
+- Vercel Deployment Protection or team-only access
+- Cloudflare Access
+- VPN or authenticated reverse proxy
+
+## Production Notes
+
+- Supabase backups should be enabled according to the business plan.
+- Review customer data handling and retention requirements before entering real customer data.
+- Add a formal audit-log table if regulatory-grade history is required.
+- Keep the source repo private if project/customer information is sensitive.
 
 ## Static Host Settings
 
 - Build command: `npm run build`
 - Publish directory: `dist`
+- Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - SPA fallback: `/* /index.html 200`
-- Security headers are included in `public/_headers`.
+- Security headers are included in `public/_headers` and `vercel.json`.
 - Search indexing is blocked through `robots.txt` and `noindex` metadata.
 
 ## Pre-Deployment Check

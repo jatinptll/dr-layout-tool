@@ -175,6 +175,17 @@ h4 {
   flex-direction: column;
 }
 
+.loading-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-xl);
+  color: var(--text-secondary);
+  background: var(--bg-base);
+  font-family: var(--font-heading);
+  font-size: 1rem;
+}
+
 .page {
   flex: 1;
   padding: var(--space-lg);
@@ -1275,6 +1286,14 @@ h4 {
 
 .login-error.visible {
   display: block;
+}
+
+.login-config-warning {
+  margin-top: var(--space-sm);
+  color: var(--warning);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
 }
 
 /* ---------- 10. Dashboard ---------- */

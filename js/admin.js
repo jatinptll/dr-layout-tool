@@ -112,8 +112,8 @@ export function renderAdmin(container, navigate) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = importData(reader.result);
+    reader.onload = async () => {
+      const result = await importData(reader.result);
       if (result.success) {
         showToast('Data imported successfully', 'success');
         renderTable();
@@ -127,9 +127,14 @@ export function renderAdmin(container, navigate) {
 
   document.getElementById('admin-reset-btn')?.addEventListener('click', () => {
     if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
-      resetData();
-      showToast('Data reset to defaults', 'info');
-      renderTable();
+      resetData()
+        .then(() => {
+          showToast('Data reset to defaults', 'info');
+          renderTable();
+        })
+        .catch((error) => {
+          showToast(error.message || 'Reset failed', 'error');
+        });
     }
   });
 
@@ -322,7 +327,8 @@ export function renderAdmin(container, navigate) {
     });
 
     // Save handler
-    document.getElementById('modal-save-btn')?.addEventListener('click', () => {
+    document.getElementById('modal-save-btn')?.addEventListener('click', async () => {
+      const saveButton = document.getElementById('modal-save-btn');
       const updates = {};
       for (const section of sections) {
         for (const field of section.fields) {
@@ -332,10 +338,22 @@ export function renderAdmin(container, navigate) {
           }
         }
       }
-      updateHouse(project, id, updates);
-      showToast(`House ${id} updated`, 'success');
-      close();
-      renderTable();
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
+      }
+      try {
+        await updateHouse(project, id, updates);
+        showToast(`House ${id} updated`, 'success');
+        close();
+        renderTable();
+      } catch (error) {
+        showToast(error.message || `House ${id} update failed`, 'error');
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = 'Save Changes';
+        }
+      }
     });
 
     // Escape to close
@@ -350,6 +368,10 @@ export function renderAdmin(container, navigate) {
 
   // Initial render
   renderTable();
+
+  const dataChangedHandler = () => renderTable();
+  window.addEventListener('duke:data-changed', dataChangedHandler);
+  return () => window.removeEventListener('duke:data-changed', dataChangedHandler);
 }
 
 // ── Toast Notification ───────────────────────────────────

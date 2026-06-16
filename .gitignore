@@ -4,6 +4,7 @@ dist/
 *.log
 .env
 .env.*
+!.env.example
 
 # Local design/reference exports that are not needed by the GitHub Pages build
 Scheme Layout.pdf

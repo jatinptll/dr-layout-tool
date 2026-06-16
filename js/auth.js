@@ -1,73 +1,110 @@
 /* ============================================================
-   Auth Module — Client-side authentication with role-based access
+   Auth Module — Supabase authentication with role profiles
    ============================================================ */
 
-const USERS = {
-  admin: { password: 'admin123', role: 'admin', name: 'Admin', label: 'Administrator' },
-  sales: { password: 'sales123', role: 'sales', name: 'Sales', label: 'Sales Team' },
-  site:  { password: 'site123',  role: 'site',  name: 'Site',  label: 'Site Team' },
-};
+import { getSupabaseConfigError, isSupabaseConfigured, requireSupabase } from './supabase.js';
 
-const SESSION_KEY = 'duke_realty_session';
+let currentUser = null;
 
-/**
- * Attempt login with given credentials
- * @returns {{ success: boolean, error?: string, user?: object }}
- */
-export function login(username, password) {
-  const key = username.toLowerCase().trim();
-  const user = USERS[key];
+function formatAuthError(message) {
+  if (!message) return 'Unable to sign in.';
+  if (message.toLowerCase().includes('invalid login')) {
+    return 'Invalid email or password.';
+  }
+  return message;
+}
 
-  if (!user) {
-    return { success: false, error: 'User not found' };
+async function loadProfile(user) {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from('user_profiles')
+    .select('role,name,label')
+    .eq('id', user.id)
+    .single();
+
+  if (error || !data) {
+    throw new Error('This account has no Duke Realty role profile. Ask an admin to add it in Supabase.');
   }
 
-  if (user.password !== password) {
-    return { success: false, error: 'Invalid password' };
-  }
-
-  const session = {
-    username: key,
-    role: user.role,
-    name: user.name,
-    label: user.label,
+  currentUser = {
+    id: user.id,
+    email: user.email,
+    username: user.email,
+    role: data.role,
+    name: data.name || user.email,
+    label: data.label || data.role,
     loggedInAt: Date.now(),
   };
 
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return { success: true, user: session };
+  return currentUser;
 }
 
-/**
- * Log out current user
- */
-export function logout() {
-  sessionStorage.removeItem(SESSION_KEY);
-}
+export async function initAuth() {
+  if (!isSupabaseConfigured) {
+    currentUser = null;
+    return null;
+  }
 
-/**
- * Get current logged-in user info, or null
- */
-export function getCurrentUser() {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.getSession();
+  if (error || !data.session?.user) {
+    currentUser = null;
+    return null;
+  }
+
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return await loadProfile(data.session.user);
   } catch {
+    await client.auth.signOut();
+    currentUser = null;
     return null;
   }
 }
 
 /**
- * Check if a user is currently authenticated
+ * Attempt login with Supabase email/password credentials.
+ * @returns {Promise<{ success: boolean, error?: string, user?: object }>}
  */
-export function isAuthenticated() {
-  return getCurrentUser() !== null;
+export async function login(email, password) {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: getSupabaseConfigError() };
+  }
+
+  const client = requireSupabase();
+  const { data, error } = await client.auth.signInWithPassword({
+    email: email.trim(),
+    password,
+  });
+
+  if (error || !data.user) {
+    return { success: false, error: formatAuthError(error?.message) };
+  }
+
+  try {
+    const user = await loadProfile(data.user);
+    return { success: true, user };
+  } catch (profileError) {
+    await client.auth.signOut();
+    currentUser = null;
+    return { success: false, error: profileError.message };
+  }
 }
 
-/**
- * Check if current user has a specific role
- */
+export async function logout() {
+  if (isSupabaseConfigured) {
+    await requireSupabase().auth.signOut();
+  }
+  currentUser = null;
+}
+
+export function getCurrentUser() {
+  return currentUser;
+}
+
+export function isAuthenticated() {
+  return currentUser !== null;
+}
+
 export function hasRole(role) {
-  const user = getCurrentUser();
-  return user?.role === role;
+  return currentUser?.role === role;
 }

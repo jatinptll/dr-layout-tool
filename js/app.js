@@ -3,8 +3,9 @@
    Hash-based routing, navigation, page transitions
    ============================================================ */
 
-import { login, logout, getCurrentUser, isAuthenticated } from './auth.js';
-import { initData } from './data.js';
+import { login, logout, getCurrentUser, initAuth, isAuthenticated } from './auth.js';
+import { initData, subscribeToHouseChanges } from './data.js';
+import { getSupabaseConfigError, isSupabaseConfigured } from './supabase.js';
 import { renderDashboard } from './dashboard.js';
 import { createMap } from './map-renderer.js';
 import { ANTONIA_CONFIG, ANTONIA_HOUSES } from './antonia-map.js';
@@ -15,8 +16,9 @@ import { renderAdmin } from './admin.js';
 // ── Init ───────────────────────────────────────────────────
 const app = document.getElementById('app');
 let currentMapInstance = null;
-
-initData();
+let routeCleanup = null;
+let dataUnsubscribe = null;
+let dataReady = false;
 
 // ── Router ─────────────────────────────────────────────────
 function getRoute() {
@@ -27,10 +29,42 @@ function navigate(route) {
   window.location.hash = route;
 }
 
-function handleRoute() {
+async function ensureDataReady() {
+  if (!isAuthenticated() || dataReady) return true;
+
+  try {
+    await initData();
+    dataReady = true;
+    startRealtime();
+    return true;
+  } catch (error) {
+    renderFatalError(error.message || 'Unable to load Duke Realty data.');
+    return false;
+  }
+}
+
+function startRealtime() {
+  if (dataUnsubscribe || !isAuthenticated()) return;
+  dataUnsubscribe = subscribeToHouseChanges(() => {
+    window.dispatchEvent(new CustomEvent('duke:data-changed'));
+  });
+}
+
+function stopRealtime() {
+  if (dataUnsubscribe) {
+    dataUnsubscribe();
+    dataUnsubscribe = null;
+  }
+}
+
+async function handleRoute() {
   const route = getRoute();
 
   // Cleanup
+  if (routeCleanup) {
+    routeCleanup();
+    routeCleanup = null;
+  }
   closePopup();
   if (currentMapInstance) {
     currentMapInstance.destroy();
@@ -49,6 +83,11 @@ function handleRoute() {
     return;
   }
 
+  if (isAuthenticated()) {
+    const ready = await ensureDataReady();
+    if (!ready) return;
+  }
+
   const user = getCurrentUser();
 
   switch (route) {
@@ -58,6 +97,9 @@ function handleRoute() {
     case '/dashboard':
       renderNavbar(user);
       renderDashboard(getContentArea(), (target) => navigate(`/${target}`));
+      routeCleanup = bindDataRefresh(() => {
+        renderDashboard(getContentArea(), (target) => navigate(`/${target}`));
+      });
       break;
     case '/antonia':
       renderNavbar(user);
@@ -73,18 +115,50 @@ function handleRoute() {
         return;
       }
       renderNavbar(user);
-      renderAdmin(getContentArea(), (target) => navigate(`/${target}`));
+      routeCleanup = renderAdmin(getContentArea(), (target) => navigate(`/${target}`));
       break;
     default:
       navigate('/dashboard');
   }
 }
 
-window.addEventListener('hashchange', handleRoute);
-window.addEventListener('DOMContentLoaded', handleRoute);
+window.addEventListener('hashchange', () => {
+  handleRoute();
+});
 
-// Trigger initial route
-handleRoute();
+boot();
+
+async function boot() {
+  app.className = 'app-loading';
+  app.innerHTML = '<div class="loading-screen">Loading Duke Realty...</div>';
+  await initAuth();
+  handleRoute();
+}
+
+function bindDataRefresh(callback) {
+  const handler = () => callback();
+  window.addEventListener('duke:data-changed', handler);
+  return () => window.removeEventListener('duke:data-changed', handler);
+}
+
+function renderFatalError(message) {
+  app.className = 'app-login';
+  app.innerHTML = `
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-logo">
+          <img class="login-brand-logo" src="duke-realty-logo.png" alt="Duke Realty" />
+        </div>
+        <div class="login-error visible">${message}</div>
+        <button type="button" class="btn btn-primary" id="retry-load-btn">Retry</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('retry-load-btn')?.addEventListener('click', () => {
+    dataReady = false;
+    handleRoute();
+  });
+}
 
 // ── Content Area ───────────────────────────────────────────
 function getContentArea() {
@@ -110,12 +184,12 @@ function renderLogin() {
         <form class="login-form" id="login-form" autocomplete="off">
           <div class="login-error" id="login-error"></div>
           <div class="form-group">
-            <label class="form-label" for="login-username">Username</label>
+            <label class="form-label" for="login-username">Email</label>
             <input
               class="form-input"
               type="text"
               id="login-username"
-              placeholder="Enter username"
+              placeholder="Enter email"
               autocomplete="username"
               required
             />
@@ -132,26 +206,37 @@ function renderLogin() {
             />
           </div>
           <button type="submit" class="btn btn-primary">Sign In</button>
+          ${!isSupabaseConfigured ? `<p class="login-config-warning">${getSupabaseConfigError()}</p>` : ''}
         </form>
       </div>
     </div>
   `;
 
   // Form submit
-  document.getElementById('login-form')?.addEventListener('submit', (e) => {
+  document.getElementById('login-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = document.getElementById('login-username')?.value || '';
     const password = document.getElementById('login-password')?.value || '';
-    attemptLogin(username, password);
+    await attemptLogin(username, password);
   });
 
 }
 
-function attemptLogin(username, password) {
-  const result = login(username, password);
+async function attemptLogin(username, password) {
   const errorEl = document.getElementById('login-error');
+  const submitBtn = document.querySelector('#login-form button[type="submit"]');
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in...';
+  }
+
+  const result = await login(username, password);
 
   if (result.success) {
+    dataReady = false;
+    const ready = await ensureDataReady();
+    if (!ready) return;
     navigate('/dashboard');
   } else {
     if (errorEl) {
@@ -161,6 +246,11 @@ function attemptLogin(username, password) {
       errorEl.offsetHeight; // Trigger reflow
       errorEl.style.animation = 'fadeIn 0.2s ease';
     }
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Sign In';
   }
 }
 
@@ -244,8 +334,10 @@ function renderNavbar(user) {
   });
 
   // Logout
-  document.getElementById('nav-logout')?.addEventListener('click', () => {
-    logout();
+  document.getElementById('nav-logout')?.addEventListener('click', async () => {
+    await logout();
+    stopRealtime();
+    dataReady = false;
     navigate('/login');
   });
 
@@ -277,5 +369,9 @@ function renderMapView(project) {
   // Back button
   document.getElementById('map-back-btn')?.addEventListener('click', () => {
     navigate('/dashboard');
+  });
+
+  routeCleanup = bindDataRefresh(() => {
+    currentMapInstance?.refreshStatuses();
   });
 }
