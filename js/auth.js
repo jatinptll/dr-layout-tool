@@ -9,16 +9,34 @@ let currentUser = null;
 function formatAuthError(message) {
   if (!message) return 'Unable to sign in.';
   if (message.toLowerCase().includes('invalid login')) {
-    return 'Invalid email or password.';
+    return 'Invalid username, email, or password.';
   }
   return message;
+}
+
+function normalizeIdentifier(identifier) {
+  return identifier.trim().toLowerCase();
+}
+
+async function resolveLoginEmail(identifier) {
+  const normalized = normalizeIdentifier(identifier);
+  if (!normalized) return '';
+  if (normalized.includes('@')) return normalized;
+
+  const client = requireSupabase();
+  const { data, error } = await client.rpc('resolve_login_email', {
+    login_identifier: normalized,
+  });
+
+  if (error || !data) return normalized;
+  return data;
 }
 
 async function loadProfile(user) {
   const client = requireSupabase();
   const { data, error } = await client
     .from('user_profiles')
-    .select('role,name,label')
+    .select('username,role,name,label')
     .eq('id', user.id)
     .single();
 
@@ -29,7 +47,7 @@ async function loadProfile(user) {
   currentUser = {
     id: user.id,
     email: user.email,
-    username: user.email,
+    username: data.username || user.email,
     role: data.role,
     name: data.name || user.email,
     label: data.label || data.role,
@@ -62,17 +80,18 @@ export async function initAuth() {
 }
 
 /**
- * Attempt login with Supabase email/password credentials.
+ * Attempt login with Supabase email-or-username/password credentials.
  * @returns {Promise<{ success: boolean, error?: string, user?: object }>}
  */
-export async function login(email, password) {
+export async function login(identifier, password) {
   if (!isSupabaseConfigured) {
     return { success: false, error: getSupabaseConfigError() };
   }
 
   const client = requireSupabase();
+  const email = await resolveLoginEmail(identifier);
   const { data, error } = await client.auth.signInWithPassword({
-    email: email.trim(),
+    email,
     password,
   });
 

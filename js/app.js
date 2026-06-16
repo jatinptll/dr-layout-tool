@@ -184,12 +184,12 @@ function renderLogin() {
         <form class="login-form" id="login-form" autocomplete="off">
           <div class="login-error" id="login-error"></div>
           <div class="form-group">
-            <label class="form-label" for="login-username">Email</label>
+            <label class="form-label" for="login-username">Email or Username</label>
             <input
               class="form-input"
               type="text"
               id="login-username"
-              placeholder="Enter email"
+              placeholder="Enter email or username"
               autocomplete="username"
               required
             />

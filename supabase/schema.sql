@@ -3,12 +3,34 @@
 
 create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  username text unique,
   role text not null check (role in ('admin', 'sales', 'site')),
   name text not null,
   label text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.user_profiles
+add column if not exists username text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'user_profiles_username_lowercase'
+      and conrelid = 'public.user_profiles'::regclass
+  ) then
+    alter table public.user_profiles
+    add constraint user_profiles_username_lowercase
+    check (username is null or username = lower(username));
+  end if;
+end $$;
+
+create unique index if not exists user_profiles_username_key
+  on public.user_profiles (username)
+  where username is not null;
 
 create table if not exists public.houses (
   project text not null check (project in ('antonia', 'aranya')),
@@ -88,6 +110,20 @@ security definer
 set search_path = public
 as $$
   select role from public.user_profiles where id = (select auth.uid());
+$$;
+
+create or replace function public.resolve_login_email(login_identifier text)
+returns text
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select au.email
+  from public.user_profiles up
+  join auth.users au on au.id = up.id
+  where up.username = lower(trim(login_identifier))
+  limit 1;
 $$;
 
 create policy "Users can read own profile"
@@ -246,6 +282,7 @@ $$;
 
 grant execute on function public.get_houses_for_current_user() to authenticated;
 grant execute on function public.update_house(text, integer, jsonb) to authenticated;
+grant execute on function public.resolve_login_email(text) to anon, authenticated;
 
 create or replace function public.log_house_change()
 returns trigger
@@ -282,9 +319,10 @@ exception
 end $$;
 
 -- After creating Auth users in Supabase, add profiles like this:
--- insert into public.user_profiles (id, role, name, label)
+-- insert into public.user_profiles (id, username, role, name, label)
 -- values (
 --   (select id from auth.users where email = 'owner@example.com'),
+--   'admin',
 --   'admin',
 --   'Admin',
 --   'Administrator'
