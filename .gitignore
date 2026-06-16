@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+
+# Local design/reference exports that are not needed by the GitHub Pages build
+Scheme Layout.pdf
+Scheme Layout IMG 2.png
+assets/
+public/Scheme Layout.pdf.png
