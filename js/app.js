@@ -12,6 +12,8 @@ import { ANTONIA_CONFIG, ANTONIA_HOUSES } from './antonia-map.js';
 import { ARANYA_CONFIG, ARANYA_HOUSES } from './aranya-map.js';
 import { showHousePopup, closePopup } from './popup.js';
 import { renderAdmin } from './admin.js';
+import { startPresence, stopPresence } from './presence.js';
+import { renderSuperAdmin } from './super-admin.js';
 
 // ── Init ───────────────────────────────────────────────────
 const app = document.getElementById('app');
@@ -19,6 +21,10 @@ let currentMapInstance = null;
 let routeCleanup = null;
 let dataUnsubscribe = null;
 let dataReady = false;
+
+function hasAdminAccess(user) {
+  return user?.role === 'admin' || user?.role === 'super_admin';
+}
 
 // ── Router ─────────────────────────────────────────────────
 function getRoute() {
@@ -79,11 +85,13 @@ async function handleRoute() {
 
   // Already logged in, redirect from login
   if (isAuthenticated() && route === '/login') {
+    startPresence(getCurrentUser());
     navigate('/dashboard');
     return;
   }
 
   if (isAuthenticated()) {
+    startPresence(getCurrentUser());
     const ready = await ensureDataReady();
     if (!ready) return;
   }
@@ -110,12 +118,20 @@ async function handleRoute() {
       renderMapView('aranya');
       break;
     case '/admin':
-      if (user?.role !== 'admin') {
+      if (!hasAdminAccess(user)) {
         navigate('/dashboard');
         return;
       }
       renderNavbar(user);
       routeCleanup = renderAdmin(getContentArea(), (target) => navigate(`/${target}`));
+      break;
+    case '/super-admin':
+      if (user?.role !== 'super_admin') {
+        navigate('/dashboard');
+        return;
+      }
+      renderNavbar(user);
+      routeCleanup = renderSuperAdmin(getContentArea(), (target) => navigate(`/${target}`));
       break;
     default:
       navigate('/dashboard');
@@ -234,6 +250,7 @@ async function attemptLogin(username, password) {
   const result = await login(username, password);
 
   if (result.success) {
+    startPresence(result.user);
     dataReady = false;
     const ready = await ensureDataReady();
     if (!ready) return;
@@ -298,11 +315,17 @@ function renderNavbar(user) {
         </span>
         <span>Aranya</span>
       </a>
-      ${user?.role === 'admin' ? `<a href="#/admin" class="${route === '/admin' ? 'active' : ''}" id="nav-admin">
+      ${hasAdminAccess(user) ? `<a href="#/admin" class="${route === '/admin' ? 'active' : ''}" id="nav-admin">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 2 4 5.5v6.2c0 4 2.6 7.7 8 10.3 5.4-2.6 8-6.3 8-10.3V5.5L12 2Zm0 4.2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm-5 10.2c.8-2 2.7-3.2 5-3.2s4.2 1.2 5 3.2c-1.1 1.3-2.8 2.4-5 3.4-2.2-1-3.9-2.1-5-3.4Z"/></svg>
         </span>
         <span>Admin</span>
+      </a>` : ''}
+      ${user?.role === 'super_admin' ? `<a href="#/super-admin" class="${route === '/super-admin' ? 'active' : ''}" id="nav-super-admin">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.6 2.9 8.8 7 10 4.1-1.2 7-5.4 7-10V5l-7-3Zm0 4 1.2 2.6 2.8.4-2 2  .5 2.8L12 12.5l-2.5 1.3.5-2.8-2-2 2.8-.4L12 6Z"/></svg>
+        </span>
+        <span>Super Admin</span>
       </a>` : ''}
       <span class="nav-role-badge">${user?.label || user?.role || ''}</span>
       <button id="nav-logout" class="btn btn-ghost btn-sm">
@@ -335,8 +358,9 @@ function renderNavbar(user) {
 
   // Logout
   document.getElementById('nav-logout')?.addEventListener('click', async () => {
-    await logout();
     stopRealtime();
+    await stopPresence();
+    await logout();
     dataReady = false;
     navigate('/login');
   });

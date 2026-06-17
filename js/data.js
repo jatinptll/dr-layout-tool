@@ -152,7 +152,7 @@ export function getHouseForRole(project, id, role) {
   const house = getHouse(project, id);
   if (!house) return null;
 
-  if (role === 'admin') return { ...house };
+  if (role === 'admin' || role === 'super_admin') return { ...house };
 
   const allowedFields = role === 'sales' ? SALES_FIELDS : SITE_FIELDS;
   const filtered = {};
@@ -163,7 +163,7 @@ export function getHouseForRole(project, id, role) {
 }
 
 export function getEditableFields(role) {
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'super_admin') {
     return [
       { section: 'General', fields: [
         { key: 'plotSize', label: 'Plot Size', type: 'text' },

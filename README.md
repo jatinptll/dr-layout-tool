@@ -43,7 +43,7 @@ Deploy the generated `dist/` directory to a static host such as Netlify, Vercel,
 1. Create a Supabase project.
 2. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor.
 3. Create users in `Authentication > Users`.
-4. Add each user to `public.user_profiles` with a lowercase username and role `admin`, `sales`, or `site`.
+4. Add each user to `public.user_profiles` with a lowercase username and role `admin`, `sales`, `site`, or `super_admin`.
 5. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel.
 
 Example profile insert after creating a user:
@@ -60,6 +60,12 @@ values (
 ```
 
 Users can sign in with either their Supabase email address or the username from `public.user_profiles.username`.
+
+The online-user super admin panel is available to `super_admin` users from the app navigation or directly at:
+
+```text
+#/super-admin
+```
 
 To add a username to an existing profile:
 

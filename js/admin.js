@@ -16,7 +16,7 @@ import {
  */
 export function renderAdmin(container, navigate) {
   const user = getCurrentUser();
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
     container.innerHTML = '<div class="page"><p>Access denied. Admin role required.</p></div>';
     return;
   }

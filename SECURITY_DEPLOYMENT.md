@@ -11,6 +11,7 @@ The current app uses:
 - Role profiles in `public.user_profiles`.
 - Postgres RPC functions for role-filtered reads and admin-only writes.
 - A non-sensitive `house_change_events` table for realtime refreshes.
+- A `user_presence` heartbeat table for the hidden super admin online-users panel.
 
 Do not deploy without running `supabase/schema.sql` and adding production Supabase environment variables.
 
@@ -19,7 +20,7 @@ Do not deploy without running `supabase/schema.sql` and adding production Supaba
 1. Create a Supabase project.
 2. Run `supabase/schema.sql` in the Supabase SQL Editor.
 3. Create real users in `Authentication > Users`.
-4. Insert each user's profile in `public.user_profiles` with a lowercase username and role `admin`, `sales`, or `site`.
+4. Insert each user's profile in `public.user_profiles` with a lowercase username and role `admin`, `sales`, `site`, or `super_admin`.
 5. Add Vercel environment variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
@@ -38,6 +39,7 @@ For company use, keep one of these enabled until the access model is finalized:
 
 - Supabase backups should be enabled according to the business plan.
 - Usernames must be lowercase and unique. Email login remains supported through Supabase Auth.
+- The online-user panel is available to `super_admin` users and is guarded by the `super_admin` role.
 - Review customer data handling and retention requirements before entering real customer data.
 - Add a formal audit-log table if regulatory-grade history is required.
 - Keep the source repo private if project/customer information is sensitive.
