@@ -5161,7 +5161,13 @@ body {
   body {
     min-width: 0;
     overflow-x: hidden;
-    overscroll-behavior-y: none;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  html {
+    overflow-y: auto !important;
   }
 
   #app.app-shell {
@@ -5317,6 +5323,10 @@ body {
   .scheme-map-mount.scheme-map-embed {
     height: 410px;
     min-height: 410px;
+  }
+
+  .scheme-map-embed .map-viewport {
+    touch-action: pan-y;
   }
 
   .scheme-map-embed .map-toolbar {

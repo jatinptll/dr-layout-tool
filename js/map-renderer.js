@@ -25,6 +25,7 @@ export function createMap(container, config, houses, project, onHouseClick, opti
   let startY = 0;
   let startPanX = 0;
   let startPanY = 0;
+  let touchGesture = null;
 
   const MIN_SCALE = 0.3;
   const MAX_SCALE = 5;
@@ -226,6 +227,8 @@ export function createMap(container, config, houses, project, onHouseClick, opti
 
   // ── Mouse Zoom ───────────────────────────────────────────
   viewport.addEventListener('wheel', (e) => {
+    if (embedded && !e.ctrlKey && !e.metaKey) return;
+
     e.preventDefault();
     const rect = viewport.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -276,6 +279,7 @@ export function createMap(container, config, houses, project, onHouseClick, opti
   viewport.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
       isPanning = true;
+      touchGesture = null;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startPanX = panX;
@@ -293,12 +297,26 @@ export function createMap(container, config, houses, project, onHouseClick, opti
   }, { passive: true });
 
   viewport.addEventListener('touchmove', (e) => {
-    e.preventDefault();
     if (e.touches.length === 1 && isPanning) {
+      if (embedded) {
+        const deltaX = Math.abs(e.touches[0].clientX - startX);
+        const deltaY = Math.abs(e.touches[0].clientY - startY);
+        if (!touchGesture && Math.max(deltaX, deltaY) > 6) {
+          touchGesture = deltaY > deltaX ? 'vertical' : 'horizontal';
+        }
+        if (!touchGesture) return;
+        if (touchGesture === 'vertical') {
+          isPanning = false;
+          return;
+        }
+      }
+
+      e.preventDefault();
       panX = startPanX + (e.touches[0].clientX - startX);
       panY = startPanY + (e.touches[0].clientY - startY);
       applyTransform();
     } else if (e.touches.length === 2) {
+      e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
@@ -327,6 +345,7 @@ export function createMap(container, config, houses, project, onHouseClick, opti
   viewport.addEventListener('touchend', () => {
     isPanning = false;
     lastTouchDist = 0;
+    touchGesture = null;
   }, { passive: true });
 
   // ── Button Controls ──────────────────────────────────────

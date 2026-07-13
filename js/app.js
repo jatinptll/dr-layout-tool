@@ -64,6 +64,9 @@ function stopRealtime() {
 async function handleRoute() {
   const route = getRoute();
 
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+
   // Cleanup
   if (routeCleanup) {
     routeCleanup();
