@@ -3,7 +3,7 @@
    ============================================================ */
 
 import { getCurrentUser } from './auth.js';
-import { getProjectStats } from './data.js';
+import { getDelayedHousesCount, getProjectStats } from './data.js';
 import { hasAdminAccess, hasSuperAdminAccess } from './roles.js';
 
 /**
@@ -20,6 +20,7 @@ export function renderDashboard(container, navigate) {
   const totalHouses = antoniaStats.total + aranyaStats.total;
   const totalAvailable = antoniaStats.available + aranyaStats.available;
   const totalBooked = antoniaStats.booked + aranyaStats.booked;
+  const delayedHouses = getDelayedHousesCount();
 
   container.innerHTML = '';
   container.className = 'page dashboard-page page-enter';
@@ -36,7 +37,7 @@ export function renderDashboard(container, navigate) {
       ${summaryCard('Total Houses', totalHouses, 'gold', '<path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3V10.5Z"/>')}
       ${summaryCard('Available', totalAvailable, 'green', '<path d="m9.2 15.4-3.6-3.6-1.4 1.4 5 5 10-10-1.4-1.4-8.6 8.6Z"/>')}
       ${summaryCard('Booked', totalBooked, 'pink', '<path d="M7 2h2v3h6V2h2v3h3v16H4V5h3V2Zm11 8H6v9h12v-9Z"/>')}
-      ${summaryCard('Projects', 2, 'blue', '<path d="M12 2 3 6.5 12 11l9-4.5L12 2Zm-7 9 7 3.5 7-3.5v3l-7 3.5L5 14v-3Zm0 5 7 3.5 7-3.5v3l-7 3.5L5 19v-3Z"/>')}
+      ${summaryCard('Delayed Houses', delayedHouses, 'pink', '<path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 11H7v-2h4V6h2v7Zm0 3h-2v2h2v-2Z"/>')}
     </section>
 
     <section class="dashboard-grid" aria-label="Projects">

@@ -256,7 +256,7 @@ begin
     case when user_role in ('admin', 'super_admin', 'site') then h.contractor_name else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.site_notes else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.remarks else '' end,
-    case when user_role in ('admin', 'super_admin', 'site') then h.target_date else '' end,
+    h.target_date,
     case when user_role in ('admin', 'super_admin', 'site') then h.flooring else '' end,
     case when user_role in ('admin', 'super_admin') then h.cost_price else '' end,
     case when user_role in ('admin', 'super_admin') then h.profit_margin else '' end,

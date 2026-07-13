@@ -416,6 +416,26 @@ export function getSchemeConstructionStats(project) {
   return { total, overallProgress, notStarted, inProgress, completed };
 }
 
+export function isHouseDelayed(house, now = new Date()) {
+  if (!house?.targetDate || getConstructionProgress(house.constructionStage) >= 100) {
+    return false;
+  }
+
+  const [year, month, day] = String(house.targetDate).split('-').map(Number);
+  if (!year || !month || !day) return false;
+
+  const targetDate = new Date(year, month - 1, day);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return !Number.isNaN(targetDate.getTime()) && targetDate < today;
+}
+
+export function getDelayedHousesCount() {
+  return Object.keys(PROJECTS).reduce(
+    (total, project) => total + getHousesList(project).filter(house => isHouseDelayed(house)).length,
+    0,
+  );
+}
+
 export function subscribeToHouseChanges(onChange) {
   const client = requireSupabase();
   let refreshTimer = null;
