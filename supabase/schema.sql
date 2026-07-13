@@ -45,7 +45,7 @@ create table if not exists public.houses (
   plot_size text not null default '',
   facing text not null default '',
   type text not null default '',
-  status text not null default 'available' check (status in ('available', 'booked')),
+  status text not null default 'available' check (status in ('available', 'booked', 'hold')),
   price text not null default '',
   customer_name text not null default '',
   customer_phone text not null default '',
@@ -53,10 +53,13 @@ create table if not exists public.houses (
   payment_status text not null default '',
   construction_stage text not null default '',
   pending_work text not null default '',
+  extra_work text not null default '',
   material_status text not null default '',
   contractor_name text not null default '',
   site_notes text not null default '',
+  remarks text not null default '',
   target_date text not null default '',
+  flooring text not null default '',
   cost_price text not null default '',
   profit_margin text not null default '',
   internal_notes text not null default '',
@@ -69,6 +72,18 @@ create table if not exists public.houses (
     (project = 'aranya' and house_number between 1 and 68)
   )
 );
+
+alter table public.houses
+drop constraint if exists houses_status_check;
+
+alter table public.houses
+add constraint houses_status_check
+check (status in ('available', 'booked', 'hold'));
+
+alter table public.houses
+add column if not exists extra_work text not null default '',
+add column if not exists remarks text not null default '',
+add column if not exists flooring text not null default '';
 
 create index if not exists houses_project_status_idx on public.houses (project, status);
 
@@ -180,6 +195,9 @@ to authenticated
 using (user_id = (select auth.uid()))
 with check (user_id = (select auth.uid()));
 
+drop function if exists public.update_house(text, integer, jsonb);
+drop function if exists public.get_houses_for_current_user();
+
 create or replace function public.get_houses_for_current_user()
 returns table (
   project text,
@@ -195,10 +213,13 @@ returns table (
   payment_status text,
   construction_stage text,
   pending_work text,
+  extra_work text,
   material_status text,
   contractor_name text,
   site_notes text,
+  remarks text,
   target_date text,
+  flooring text,
   cost_price text,
   profit_margin text,
   internal_notes text
@@ -230,10 +251,13 @@ begin
     case when user_role in ('admin', 'super_admin', 'sales') then h.payment_status else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.construction_stage else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.pending_work else '' end,
+    case when user_role in ('admin', 'super_admin', 'site') then h.extra_work else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.material_status else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.contractor_name else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.site_notes else '' end,
+    case when user_role in ('admin', 'super_admin', 'site') then h.remarks else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.target_date else '' end,
+    case when user_role in ('admin', 'super_admin', 'site') then h.flooring else '' end,
     case when user_role in ('admin', 'super_admin') then h.cost_price else '' end,
     case when user_role in ('admin', 'super_admin') then h.profit_margin else '' end,
     case when user_role in ('admin', 'super_admin') then h.internal_notes else '' end
@@ -261,10 +285,13 @@ returns table (
   payment_status text,
   construction_stage text,
   pending_work text,
+  extra_work text,
   material_status text,
   contractor_name text,
   site_notes text,
+  remarks text,
   target_date text,
+  flooring text,
   cost_price text,
   profit_margin text,
   internal_notes text
@@ -291,10 +318,13 @@ begin
     payment_status = case when h_updates ? 'payment_status' then coalesce(h_updates->>'payment_status', '') else h.payment_status end,
     construction_stage = case when h_updates ? 'construction_stage' then coalesce(h_updates->>'construction_stage', '') else h.construction_stage end,
     pending_work = case when h_updates ? 'pending_work' then coalesce(h_updates->>'pending_work', '') else h.pending_work end,
+    extra_work = case when h_updates ? 'extra_work' then coalesce(h_updates->>'extra_work', '') else h.extra_work end,
     material_status = case when h_updates ? 'material_status' then coalesce(h_updates->>'material_status', '') else h.material_status end,
     contractor_name = case when h_updates ? 'contractor_name' then coalesce(h_updates->>'contractor_name', '') else h.contractor_name end,
     site_notes = case when h_updates ? 'site_notes' then coalesce(h_updates->>'site_notes', '') else h.site_notes end,
+    remarks = case when h_updates ? 'remarks' then coalesce(h_updates->>'remarks', '') else h.remarks end,
     target_date = case when h_updates ? 'target_date' then coalesce(h_updates->>'target_date', '') else h.target_date end,
+    flooring = case when h_updates ? 'flooring' then coalesce(h_updates->>'flooring', '') else h.flooring end,
     cost_price = case when h_updates ? 'cost_price' then coalesce(h_updates->>'cost_price', '') else h.cost_price end,
     profit_margin = case when h_updates ? 'profit_margin' then coalesce(h_updates->>'profit_margin', '') else h.profit_margin end,
     internal_notes = case when h_updates ? 'internal_notes' then coalesce(h_updates->>'internal_notes', '') else h.internal_notes end,
@@ -315,6 +345,11 @@ begin
 end;
 $$;
 
+revoke execute on function public.current_user_role() from public, anon;
+revoke execute on function public.get_houses_for_current_user() from public, anon;
+revoke execute on function public.update_house(text, integer, jsonb) from public, anon;
+
+grant execute on function public.current_user_role() to authenticated;
 grant execute on function public.get_houses_for_current_user() to authenticated;
 grant execute on function public.update_house(text, integer, jsonb) to authenticated;
 grant execute on function public.resolve_login_email(text) to anon, authenticated;

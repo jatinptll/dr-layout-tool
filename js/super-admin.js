@@ -1,5 +1,6 @@
 import { getCurrentUser } from './auth.js';
 import { refreshOnlineUsers, subscribePresence } from './presence.js';
+import { hasSuperAdminAccess } from './roles.js';
 
 function createEl(tagName, className, text) {
   const el = document.createElement(tagName);
@@ -65,7 +66,7 @@ function describePresenceError(error) {
 
 export function renderSuperAdmin(container, navigate) {
   const user = getCurrentUser();
-  if (!user || user.role !== 'super_admin') {
+  if (!hasSuperAdminAccess(user)) {
     container.innerHTML = '<div class="page"><p>Access denied. Super admin role required.</p></div>';
     return null;
   }

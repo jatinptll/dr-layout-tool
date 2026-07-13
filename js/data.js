@@ -3,6 +3,7 @@
    ============================================================ */
 
 import { requireSupabase } from './supabase.js';
+import { hasAdminAccess } from './roles.js';
 
 const PROJECTS = {
   antonia: 34,
@@ -18,10 +19,13 @@ const COLUMN_TO_FIELD = {
   payment_status: 'paymentStatus',
   construction_stage: 'constructionStage',
   pending_work: 'pendingWork',
+  extra_work: 'extraWork',
   material_status: 'materialStatus',
   contractor_name: 'contractorName',
   site_notes: 'siteNotes',
+  remarks: 'remarks',
   target_date: 'targetDate',
+  flooring: 'flooring',
   cost_price: 'costPrice',
   profit_margin: 'profitMargin',
   internal_notes: 'internalNotes',
@@ -33,6 +37,46 @@ const FIELD_TO_COLUMN = Object.fromEntries(
 
 let cache = generateSeedData();
 let lastLoadPromise = null;
+
+const FACING_OPTIONS = ['', 'North', 'East', 'South', 'West'];
+const HOUSE_TYPE_OPTIONS = ['', '3BHK', '4BHK', '5BHK'];
+const STATUS_OPTIONS = ['available', 'booked', 'hold'];
+const PAYMENT_STATUS_OPTIONS = [
+  '',
+  'Pending',
+  'Partial',
+  '10%',
+  '20%',
+  '30%',
+  '40%',
+  '50%',
+  '60%',
+  '70%',
+  '80%',
+  '90%',
+  '100%',
+  'Complete',
+];
+const STATUS_LABELS = {
+  available: 'Available',
+  booked: 'Booked',
+  hold: 'Hold',
+};
+const CONSTRUCTION_STAGE_OPTIONS = [
+  '',
+  'pile',
+  'plinth',
+  'G.F Brick Work',
+  'G.F Slab',
+  'F.F Brick Work',
+  'F.F Slab',
+  'S.F Brick Work',
+  'S.F Slab',
+  'Internal Plaster',
+  'External Plaster',
+  'Internal Colour',
+  'External Colour',
+];
 
 function createDefaultHouse(project, id) {
   return {
@@ -49,10 +93,13 @@ function createDefaultHouse(project, id) {
     paymentStatus: '',
     constructionStage: '',
     pendingWork: '',
+    extraWork: '',
     materialStatus: '',
     contractorName: '',
     siteNotes: '',
+    remarks: '',
     targetDate: '',
+    flooring: '',
     costPrice: '',
     profitMargin: '',
     internalNotes: '',
@@ -146,13 +193,21 @@ export function getHousesList(project) {
 
 const COMMON_FIELDS = ['id', 'project', 'plotSize', 'facing', 'type', 'status'];
 const SALES_FIELDS = [...COMMON_FIELDS, 'price', 'customerName', 'customerPhone', 'bookingDate', 'paymentStatus'];
-const SITE_FIELDS = [...COMMON_FIELDS, 'constructionStage', 'pendingWork', 'materialStatus', 'contractorName', 'siteNotes', 'targetDate'];
+const SITE_FIELDS = [
+  ...COMMON_FIELDS,
+  'constructionStage',
+  'extraWork',
+  'materialStatus',
+  'remarks',
+  'targetDate',
+  'flooring',
+];
 
 export function getHouseForRole(project, id, role) {
   const house = getHouse(project, id);
   if (!house) return null;
 
-  if (role === 'admin' || role === 'super_admin') return { ...house };
+  if (hasAdminAccess(role)) return { ...house };
 
   const allowedFields = role === 'sales' ? SALES_FIELDS : SITE_FIELDS;
   const filtered = {};
@@ -162,34 +217,33 @@ export function getHouseForRole(project, id, role) {
   return filtered;
 }
 
+export function getStatusLabel(status) {
+  return STATUS_LABELS[status] || 'Available';
+}
+
 export function getEditableFields(role) {
-  if (role === 'admin' || role === 'super_admin') {
+  if (hasAdminAccess(role)) {
     return [
       { section: 'General', fields: [
         { key: 'plotSize', label: 'Plot Size', type: 'text' },
-        { key: 'facing', label: 'Facing', type: 'select', options: ['', 'North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'] },
-        { key: 'type', label: 'Type', type: 'select', options: ['', '2BHK', '3BHK', '4BHK', 'Villa', 'Duplex', 'Plot'] },
-        { key: 'status', label: 'Status', type: 'select', options: ['available', 'booked'] },
+        { key: 'facing', label: 'Facing', type: 'select', options: FACING_OPTIONS },
+        { key: 'type', label: 'Type', type: 'select', options: HOUSE_TYPE_OPTIONS },
+        { key: 'status', label: 'Status', type: 'select', options: STATUS_OPTIONS },
       ]},
       { section: 'Sales', fields: [
         { key: 'price', label: 'Price', type: 'text' },
         { key: 'customerName', label: 'Customer Name', type: 'text' },
         { key: 'customerPhone', label: 'Customer Phone', type: 'text' },
         { key: 'bookingDate', label: 'Booking Date', type: 'date' },
-        { key: 'paymentStatus', label: 'Payment Status', type: 'select', options: ['', 'Pending', 'Partial', 'Complete'] },
+        { key: 'paymentStatus', label: 'Payment Status', type: 'select', options: PAYMENT_STATUS_OPTIONS },
       ]},
       { section: 'Construction', fields: [
-        { key: 'constructionStage', label: 'Stage', type: 'select', options: ['', 'Not Started', 'Foundation', 'Plinth', 'Superstructure', 'Roofing', 'Finishing', 'Complete'] },
-        { key: 'pendingWork', label: 'Pending Work', type: 'textarea' },
+        { key: 'constructionStage', label: 'Stage', type: 'select', options: CONSTRUCTION_STAGE_OPTIONS },
+        { key: 'extraWork', label: 'Extra Work', type: 'textarea' },
         { key: 'materialStatus', label: 'Material Status', type: 'text' },
-        { key: 'contractorName', label: 'Contractor', type: 'text' },
-        { key: 'siteNotes', label: 'Site Notes', type: 'textarea' },
+        { key: 'remarks', label: 'Remarks (Customer Asked Changes)', type: 'textarea' },
         { key: 'targetDate', label: 'Target Date', type: 'date' },
-      ]},
-      { section: 'Internal', fields: [
-        { key: 'costPrice', label: 'Cost Price', type: 'text' },
-        { key: 'profitMargin', label: 'Profit Margin', type: 'text' },
-        { key: 'internalNotes', label: 'Internal Notes', type: 'textarea' },
+        { key: 'flooring', label: 'Flooring', type: 'text' },
       ]},
     ];
   }
@@ -221,11 +275,11 @@ export function getEditableFields(role) {
     ]},
     { section: 'Construction', fields: [
       { key: 'constructionStage', label: 'Stage', type: 'text', readonly: true },
-      { key: 'pendingWork', label: 'Pending Work', type: 'text', readonly: true },
+      { key: 'extraWork', label: 'Extra Work', type: 'text', readonly: true },
       { key: 'materialStatus', label: 'Material', type: 'text', readonly: true },
-      { key: 'contractorName', label: 'Contractor', type: 'text', readonly: true },
-      { key: 'siteNotes', label: 'Site Notes', type: 'text', readonly: true },
+      { key: 'remarks', label: 'Remarks', type: 'text', readonly: true },
       { key: 'targetDate', label: 'Target Date', type: 'text', readonly: true },
+      { key: 'flooring', label: 'Flooring', type: 'text', readonly: true },
     ]},
   ];
 }
@@ -300,7 +354,8 @@ export function getProjectStats(project) {
   const total = houses.length;
   const available = houses.filter(h => h.status === 'available').length;
   const booked = houses.filter(h => h.status === 'booked').length;
-  return { total, available, booked };
+  const hold = houses.filter(h => h.status === 'hold').length;
+  return { total, available, booked, hold };
 }
 
 export function subscribeToHouseChanges(onChange) {

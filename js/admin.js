@@ -6,8 +6,9 @@
 import { getCurrentUser } from './auth.js';
 import {
   getHousesList, getHouse, updateHouse,
-  getEditableFields, exportData, importData, resetData,
+  getEditableFields, getStatusLabel, exportData, importData, resetData,
 } from './data.js';
+import { hasAdminAccess } from './roles.js';
 
 /**
  * Render the admin panel
@@ -16,7 +17,7 @@ import {
  */
 export function renderAdmin(container, navigate) {
   const user = getCurrentUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+  if (!hasAdminAccess(user)) {
     container.innerHTML = '<div class="page"><p>Access denied. Admin role required.</p></div>';
     return;
   }
@@ -74,6 +75,7 @@ export function renderAdmin(container, navigate) {
       <option value="">All Status</option>
       <option value="available">Available</option>
       <option value="booked">Booked</option>
+      <option value="hold">Hold</option>
     </select>
     <input type="text" class="form-input" id="admin-search" placeholder="Search by house #, customer..." aria-label="Search houses" style="max-width:250px" />
   `;
@@ -153,7 +155,8 @@ export function renderAdmin(container, navigate) {
         return (
           String(h.id).includes(searchQuery) ||
           (h.customerName || '').toLowerCase().includes(searchQuery) ||
-          (h.contractorName || '').toLowerCase().includes(searchQuery) ||
+          (h.remarks || '').toLowerCase().includes(searchQuery) ||
+          (h.extraWork || '').toLowerCase().includes(searchQuery) ||
           (h.type || '').toLowerCase().includes(searchQuery) ||
           (h.facing || '').toLowerCase().includes(searchQuery)
         );
@@ -175,7 +178,7 @@ export function renderAdmin(container, navigate) {
           <th>Phone</th>
           <th>Price</th>
           <th>Stage</th>
-          <th>Contractor</th>
+          <th>Remarks</th>
         </tr>
       </thead>
     `;
@@ -186,7 +189,7 @@ export function renderAdmin(container, navigate) {
       row.className = 'clickable-row';
       row.innerHTML = `
         <td style="font-weight:600;color:var(--accent)">${house.id}</td>
-        <td><span class="status-badge ${house.status}">${house.status === 'booked' ? 'Booked' : 'Available'}</span></td>
+        <td><span class="status-badge ${house.status}">${getStatusLabel(house.status)}</span></td>
         <td>${house.type || '—'}</td>
         <td>${house.plotSize || '—'}</td>
         <td>${house.facing || '—'}</td>
@@ -194,7 +197,7 @@ export function renderAdmin(container, navigate) {
         <td>${house.customerPhone || '—'}</td>
         <td>${house.price || '—'}</td>
         <td>${house.constructionStage || '—'}</td>
-        <td>${house.contractorName || '—'}</td>
+        <td>${house.remarks || '—'}</td>
       `;
       row.addEventListener('click', () => showEditModal(currentProject, house.id));
       tbody.appendChild(row);
@@ -219,7 +222,7 @@ export function renderAdmin(container, navigate) {
     const house = getHouse(project, id);
     if (!house) return;
 
-    const sections = getEditableFields('admin');
+    const sections = getEditableFields(user.role);
 
     // Create overlay
     const overlay = document.createElement('div');

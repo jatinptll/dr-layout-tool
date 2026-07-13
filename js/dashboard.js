@@ -4,10 +4,7 @@
 
 import { getCurrentUser } from './auth.js';
 import { getProjectStats } from './data.js';
-
-function hasAdminAccess(user) {
-  return user?.role === 'admin' || user?.role === 'super_admin';
-}
+import { hasAdminAccess, hasSuperAdminAccess } from './roles.js';
 
 /**
  * Render the dashboard view into the container
@@ -57,7 +54,7 @@ export function renderDashboard(container, navigate) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5.5v6.2c0 4 2.6 7.7 8 10.3 5.4-2.6 8-6.3 8-10.3V5.5L12 2Zm0 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm-5 10.3c.9-1.9 2.8-3.1 5-3.1s4.1 1.2 5 3.1c-1.2 1.2-2.8 2.3-5 3.3-2.2-1-3.8-2.1-5-3.3Z"/></svg>
             Admin Panel
           </button>
-          ${user.role === 'super_admin' ? `
+          ${hasSuperAdminAccess(user) ? `
             <button class="btn btn-secondary" id="dash-super-admin-btn" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 5 5v6c0 4.6 2.9 8.8 7 10 4.1-1.2 7-5.4 7-10V5l-7-3Zm0 4 1.2 2.6 2.8.4-2 2 .5 2.8L12 12.5l-2.5 1.3.5-2.8-2-2 2.8-.4L12 6Z"/></svg>
               Super Admin
