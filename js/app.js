@@ -15,6 +15,7 @@ import { renderAdmin } from './admin.js';
 import { startPresence, stopPresence } from './presence.js';
 import { renderSuperAdmin } from './super-admin.js';
 import { hasAdminAccess, hasSuperAdminAccess } from './roles.js';
+import { renderSchemeDashboard } from './scheme-dashboard.js';
 
 // ── Init ───────────────────────────────────────────────────
 const app = document.getElementById('app');
@@ -108,9 +109,29 @@ async function handleRoute() {
       break;
     case '/antonia':
       renderNavbar(user);
-      renderMapView('antonia');
+      routeCleanup = renderSchemeDashboard(
+        getContentArea(),
+        'antonia',
+        ANTONIA_CONFIG,
+        ANTONIA_HOUSES,
+        navigate,
+      );
       break;
     case '/aranya':
+      renderNavbar(user);
+      routeCleanup = renderSchemeDashboard(
+        getContentArea(),
+        'aranya',
+        ARANYA_CONFIG,
+        ARANYA_HOUSES,
+        navigate,
+      );
+      break;
+    case '/antonia/map':
+      renderNavbar(user);
+      renderMapView('antonia');
+      break;
+    case '/aranya/map':
       renderNavbar(user);
       renderMapView('aranya');
       break;
@@ -277,8 +298,8 @@ function renderNavbar(user) {
   nav.id = 'navbar';
 
   const route = getRoute();
-  const routeName = route.replace('/', '') || 'dashboard';
-  const isMapRoute = route === '/antonia' || route === '/aranya';
+  const routeName = route.slice(1).replaceAll('/', '-') || 'dashboard';
+  const isMapRoute = route === '/antonia/map' || route === '/aranya/map';
 
   app.className = `app-shell app-route-${routeName}${isMapRoute ? ' app-map' : ''}`;
 
@@ -300,13 +321,13 @@ function renderNavbar(user) {
         </span>
         <span>Dashboard</span>
       </a>
-      <a href="#/antonia" class="${route === '/antonia' ? 'active' : ''}" id="nav-antonia">
+      <a href="#/antonia" class="${route.startsWith('/antonia') ? 'active' : ''}" id="nav-antonia">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 3 5-2.5v13L15 20l-6-3-5 2.5v-13Zm6-.1v9l4 2v-9l-4-2Z"/></svg>
         </span>
         <span>Antonia</span>
       </a>
-      <a href="#/aranya" class="${route === '/aranya' ? 'active' : ''}" id="nav-aranya">
+      <a href="#/aranya" class="${route.startsWith('/aranya') ? 'active' : ''}" id="nav-aranya">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Zm0 2.2 5.6 2.8-5.6 2.8L6.4 8 12 5.2Zm-6 4.4 5 2.5v6.6l-5-2.5V9.6Zm7 9.1v-6.6l5-2.5v6.6l-5 2.5Z"/></svg>
         </span>
@@ -389,7 +410,7 @@ function renderMapView(project) {
 
   // Back button
   document.getElementById('map-back-btn')?.addEventListener('click', () => {
-    navigate('/dashboard');
+    navigate(`/${project}`);
   });
 
   routeCleanup = bindDataRefresh(() => {

@@ -192,7 +192,15 @@ export function getHousesList(project) {
 }
 
 const COMMON_FIELDS = ['id', 'project', 'plotSize', 'facing', 'type', 'status'];
-const SALES_FIELDS = [...COMMON_FIELDS, 'price', 'customerName', 'customerPhone', 'bookingDate', 'paymentStatus'];
+const SALES_FIELDS = [
+  ...COMMON_FIELDS,
+  'price',
+  'customerName',
+  'customerPhone',
+  'bookingDate',
+  'paymentStatus',
+  'constructionStage',
+];
 const SITE_FIELDS = [
   ...COMMON_FIELDS,
   'constructionStage',
@@ -262,6 +270,9 @@ export function getEditableFields(role) {
         { key: 'customerPhone', label: 'Phone', type: 'text', readonly: true },
         { key: 'bookingDate', label: 'Booking Date', type: 'text', readonly: true },
         { key: 'paymentStatus', label: 'Payment', type: 'text', readonly: true },
+      ]},
+      { section: 'Construction', fields: [
+        { key: 'constructionStage', label: 'Stage', type: 'text', readonly: true },
       ]},
     ];
   }
@@ -356,6 +367,53 @@ export function getProjectStats(project) {
   const booked = houses.filter(h => h.status === 'booked').length;
   const hold = houses.filter(h => h.status === 'hold').length;
   return { total, available, booked, hold };
+}
+
+const LEGACY_STAGE_PROGRESS = {
+  'not started': 0,
+  foundation: 10,
+  plinth: 17,
+  superstructure: 50,
+  roofing: 75,
+  finishing: 90,
+  complete: 100,
+  completed: 100,
+};
+
+export function getConstructionProgress(stage) {
+  const normalizedStage = String(stage || '').trim();
+  if (!normalizedStage) return 0;
+
+  const configuredIndex = CONSTRUCTION_STAGE_OPTIONS.findIndex(
+    option => option.toLowerCase() === normalizedStage.toLowerCase(),
+  );
+  if (configuredIndex > 0) {
+    return Math.round((configuredIndex / (CONSTRUCTION_STAGE_OPTIONS.length - 1)) * 100);
+  }
+
+  return LEGACY_STAGE_PROGRESS[normalizedStage.toLowerCase()] ?? 0;
+}
+
+export function getConstructionStageLabel(stage) {
+  return String(stage || '').trim() || 'Not Started';
+}
+
+export function getConstructionStages() {
+  return ['Not Started', ...CONSTRUCTION_STAGE_OPTIONS.slice(1)];
+}
+
+export function getSchemeConstructionStats(project) {
+  const houses = getHousesList(project);
+  const progressValues = houses.map(house => getConstructionProgress(house.constructionStage));
+  const total = houses.length;
+  const overallProgress = total
+    ? Math.round(progressValues.reduce((sum, progress) => sum + progress, 0) / total)
+    : 0;
+  const notStarted = progressValues.filter(progress => progress === 0).length;
+  const inProgress = progressValues.filter(progress => progress > 0 && progress < 100).length;
+  const completed = progressValues.filter(progress => progress === 100).length;
+
+  return { total, overallProgress, notStarted, inProgress, completed };
 }
 
 export function subscribeToHouseChanges(onChange) {

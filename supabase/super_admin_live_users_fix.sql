@@ -113,7 +113,7 @@ begin
     case when user_role in ('admin', 'super_admin', 'sales') then h.customer_phone else '' end,
     case when user_role in ('admin', 'super_admin', 'sales') then h.booking_date else '' end,
     case when user_role in ('admin', 'super_admin', 'sales') then h.payment_status else '' end,
-    case when user_role in ('admin', 'super_admin', 'site') then h.construction_stage else '' end,
+    h.construction_stage,
     case when user_role in ('admin', 'super_admin', 'site') then h.pending_work else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.extra_work else '' end,
     case when user_role in ('admin', 'super_admin', 'site') then h.material_status else '' end,

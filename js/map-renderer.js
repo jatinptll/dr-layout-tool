@@ -13,8 +13,9 @@ import { getHouse } from './data.js';
  * @param {Array} houses - Array of { id, x, y, w, h } in percentage coords
  * @param {string} project - 'antonia' or 'aranya'
  * @param {Function} onHouseClick - Callback when a house is clicked
+ * @param {object} [options] - Rendering options
  */
-export function createMap(container, config, houses, project, onHouseClick) {
+export function createMap(container, config, houses, project, onHouseClick, options = {}) {
   // State
   let scale = 1;
   let panX = 0;
@@ -31,18 +32,21 @@ export function createMap(container, config, houses, project, onHouseClick) {
 
   // Build DOM
   container.innerHTML = '';
-  container.className = 'map-page page-enter';
+  const embedded = options.embedded === true;
+  container.className = embedded
+    ? 'scheme-map-mount scheme-map-embed'
+    : 'map-page page-enter';
 
   // Toolbar
   const toolbar = document.createElement('div');
   toolbar.className = 'map-toolbar';
   toolbar.innerHTML = `
     <div class="map-toolbar-left">
-      <button class="btn btn-ghost btn-sm" id="map-back-btn" aria-label="Back to dashboard">
+      ${embedded ? '' : `<button class="btn btn-ghost btn-sm" id="map-back-btn" aria-label="Back to scheme dashboard">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
-      </button>
+      </button>`}
       <div class="map-title-block">
         <h2>${config.title}</h2>
         <span class="text-muted" style="font-size:0.8rem">${config.subtitle}</span>
@@ -250,17 +254,20 @@ export function createMap(container, config, houses, project, onHouseClick) {
     viewport.style.cursor = 'grabbing';
   });
 
-  window.addEventListener('mousemove', (e) => {
+  const handleMouseMove = (e) => {
     if (!isPanning) return;
     panX = startPanX + (e.clientX - startX);
     panY = startPanY + (e.clientY - startY);
     applyTransform();
-  });
+  };
 
-  window.addEventListener('mouseup', () => {
+  const handleMouseUp = () => {
     isPanning = false;
     viewport.style.cursor = '';
-  });
+  };
+
+  window.addEventListener('mousemove', handleMouseMove);
+  window.addEventListener('mouseup', handleMouseUp);
 
   // ── Touch Pan & Pinch Zoom ───────────────────────────────
   let lastTouchDist = 0;
@@ -323,7 +330,7 @@ export function createMap(container, config, houses, project, onHouseClick) {
   }, { passive: true });
 
   // ── Button Controls ──────────────────────────────────────
-  document.getElementById('map-zoom-in')?.addEventListener('click', () => {
+  container.querySelector('#map-zoom-in')?.addEventListener('click', () => {
     const prevScale = scale;
     scale = Math.min(MAX_SCALE, scale * 1.3);
     const vw = viewport.clientWidth / 2;
@@ -334,7 +341,7 @@ export function createMap(container, config, houses, project, onHouseClick) {
     applyTransform(true);
   });
 
-  document.getElementById('map-zoom-out')?.addEventListener('click', () => {
+  container.querySelector('#map-zoom-out')?.addEventListener('click', () => {
     const prevScale = scale;
     scale = Math.max(MIN_SCALE, scale / 1.3);
     const vw = viewport.clientWidth / 2;
@@ -345,10 +352,10 @@ export function createMap(container, config, houses, project, onHouseClick) {
     applyTransform(true);
   });
 
-  document.getElementById('map-fit')?.addEventListener('click', fitToView);
+  container.querySelector('#map-fit')?.addEventListener('click', fitToView);
 
   // ── Search ───────────────────────────────────────────────
-  const searchInput = document.getElementById('map-search-input');
+  const searchInput = container.querySelector('#map-search-input');
   searchInput?.addEventListener('input', () => {
     const query = searchInput.value.trim();
     // Remove all highlights
@@ -393,6 +400,8 @@ export function createMap(container, config, houses, project, onHouseClick) {
     },
     destroy() {
       resizeObserver.disconnect();
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
       container.innerHTML = '';
     },
   };
