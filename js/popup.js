@@ -4,8 +4,9 @@
    Admin can inline-edit fields.
    ============================================================ */
 
-import { getHouseForRole, getEditableFields, updateHouse } from './data.js';
+import { getHouseForRole, getEditableFields, getStatusLabel, updateHouse } from './data.js';
 import { getCurrentUser } from './auth.js';
+import { hasAdminAccess } from './roles.js';
 
 let activePopup = null;
 let activeOverlay = null;
@@ -27,7 +28,7 @@ export function showHousePopup(project, id, onUpdate) {
   if (!house) return;
 
   const sections = getEditableFields(role);
-  const isAdmin = role === 'admin';
+  const isAdmin = hasAdminAccess(role);
 
   // Overlay
   activeOverlay = document.createElement('div');
@@ -48,8 +49,8 @@ export function showHousePopup(project, id, onUpdate) {
   }
 
   // Header
-  const statusClass = house.status === 'booked' ? 'booked' : 'available';
-  const statusLabel = house.status === 'booked' ? 'Booked' : 'Available';
+  const statusClass = house.status || 'available';
+  const statusLabel = getStatusLabel(house.status);
 
   const header = document.createElement('div');
   header.className = 'popup-header';
@@ -141,8 +142,7 @@ function startInlineEdit(valueEl, project, id, field, onUpdate) {
   // Prevent double-edit
   if (valueEl.querySelector('input, select, textarea')) return;
 
-  const currentVal = valueEl.dataset.key;
-  const house = getHouseForRole(project, id, 'admin');
+  const house = getHouseForRole(project, id, getCurrentUser()?.role);
   const rawVal = house?.[field.key] || '';
 
   const editContainer = document.createElement('div');
@@ -217,7 +217,7 @@ function startInlineEdit(valueEl, project, id, field, onUpdate) {
         const badge = document.querySelector('.popup-header .status-badge');
         if (badge) {
           badge.className = `status-badge ${newVal}`;
-          badge.textContent = newVal === 'booked' ? 'Booked' : 'Available';
+          badge.textContent = getStatusLabel(newVal);
         }
       }
     } catch (error) {

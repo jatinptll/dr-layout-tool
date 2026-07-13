@@ -14,6 +14,7 @@ import { showHousePopup, closePopup } from './popup.js';
 import { renderAdmin } from './admin.js';
 import { startPresence, stopPresence } from './presence.js';
 import { renderSuperAdmin } from './super-admin.js';
+import { hasAdminAccess, hasSuperAdminAccess } from './roles.js';
 
 // ── Init ───────────────────────────────────────────────────
 const app = document.getElementById('app');
@@ -21,10 +22,6 @@ let currentMapInstance = null;
 let routeCleanup = null;
 let dataUnsubscribe = null;
 let dataReady = false;
-
-function hasAdminAccess(user) {
-  return user?.role === 'admin' || user?.role === 'super_admin';
-}
 
 // ── Router ─────────────────────────────────────────────────
 function getRoute() {
@@ -126,7 +123,7 @@ async function handleRoute() {
       routeCleanup = renderAdmin(getContentArea(), (target) => navigate(`/${target}`));
       break;
     case '/super-admin':
-      if (user?.role !== 'super_admin') {
+      if (!hasSuperAdminAccess(user)) {
         navigate('/dashboard');
         return;
       }
@@ -321,7 +318,7 @@ function renderNavbar(user) {
         </span>
         <span>Admin</span>
       </a>` : ''}
-      ${user?.role === 'super_admin' ? `<a href="#/super-admin" class="${route === '/super-admin' ? 'active' : ''}" id="nav-super-admin">
+      ${hasSuperAdminAccess(user) ? `<a href="#/super-admin" class="${route === '/super-admin' ? 'active' : ''}" id="nav-super-admin">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.6 2.9 8.8 7 10 4.1-1.2 7-5.4 7-10V5l-7-3Zm0 4 1.2 2.6 2.8.4-2 2  .5 2.8L12 12.5l-2.5 1.3.5-2.8-2-2 2.8-.4L12 6Z"/></svg>
         </span>

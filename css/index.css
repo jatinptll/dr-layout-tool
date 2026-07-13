@@ -1902,6 +1902,11 @@ h4 {
   color: var(--warning);
 }
 
+.status-badge.hold {
+  background: var(--accent-glow);
+  color: var(--accent-light);
+}
+
 /* Mobile popup — bottom sheet */
 @media (max-width: 768px) {
   .house-popup {
@@ -2676,6 +2681,11 @@ body {
 .status-badge.booked {
   color: #f064cf;
   background: rgba(215, 63, 182, 0.14);
+}
+
+.status-badge.hold {
+  color: var(--accent-light);
+  background: var(--accent-glow);
 }
 
 .popup-overlay,
