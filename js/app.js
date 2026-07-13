@@ -315,38 +315,38 @@ function renderNavbar(user) {
       </svg>
     </button>
     <div class="navbar-links" id="navbar-links">
-      <a href="#/dashboard" class="${route === '/dashboard' ? 'active' : ''}" id="nav-dashboard">
+      <a href="#/dashboard" class="${route === '/dashboard' ? 'active' : ''}" id="nav-dashboard" data-mobile-label="Home">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z"/></svg>
         </span>
         <span>Dashboard</span>
       </a>
-      <a href="#/antonia" class="${route.startsWith('/antonia') ? 'active' : ''}" id="nav-antonia">
+      <a href="#/antonia" class="${route.startsWith('/antonia') ? 'active' : ''}" id="nav-antonia" data-mobile-label="Antonia">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 3 5-2.5v13L15 20l-6-3-5 2.5v-13Zm6-.1v9l4 2v-9l-4-2Z"/></svg>
         </span>
         <span>Antonia</span>
       </a>
-      <a href="#/aranya" class="${route.startsWith('/aranya') ? 'active' : ''}" id="nav-aranya">
+      <a href="#/aranya" class="${route.startsWith('/aranya') ? 'active' : ''}" id="nav-aranya" data-mobile-label="Aranya">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Zm0 2.2 5.6 2.8-5.6 2.8L6.4 8 12 5.2Zm-6 4.4 5 2.5v6.6l-5-2.5V9.6Zm7 9.1v-6.6l5-2.5v6.6l-5 2.5Z"/></svg>
         </span>
         <span>Aranya</span>
       </a>
-      ${hasAdminAccess(user) ? `<a href="#/admin" class="${route === '/admin' ? 'active' : ''}" id="nav-admin">
+      ${hasAdminAccess(user) ? `<a href="#/admin" class="${route === '/admin' ? 'active' : ''}" id="nav-admin" data-mobile-label="Admin">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 2 4 5.5v6.2c0 4 2.6 7.7 8 10.3 5.4-2.6 8-6.3 8-10.3V5.5L12 2Zm0 4.2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm-5 10.2c.8-2 2.7-3.2 5-3.2s4.2 1.2 5 3.2c-1.1 1.3-2.8 2.4-5 3.4-2.2-1-3.9-2.1-5-3.4Z"/></svg>
         </span>
         <span>Admin</span>
       </a>` : ''}
-      ${hasSuperAdminAccess(user) ? `<a href="#/super-admin" class="${route === '/super-admin' ? 'active' : ''}" id="nav-super-admin">
+      ${hasSuperAdminAccess(user) ? `<a href="#/super-admin" class="${route === '/super-admin' ? 'active' : ''}" id="nav-super-admin" data-mobile-label="Super">
         <span class="nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.6 2.9 8.8 7 10 4.1-1.2 7-5.4 7-10V5l-7-3Zm0 4 1.2 2.6 2.8.4-2 2  .5 2.8L12 12.5l-2.5 1.3.5-2.8-2-2 2.8-.4L12 6Z"/></svg>
         </span>
         <span>Super Admin</span>
       </a>` : ''}
       <span class="nav-role-badge">${user?.label || user?.role || ''}</span>
-      <button id="nav-logout" class="btn btn-ghost btn-sm">
+      <button id="nav-logout" class="btn btn-ghost btn-sm" data-mobile-label="Exit" aria-label="Log out">
         <span class="nav-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>

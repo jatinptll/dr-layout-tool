@@ -187,19 +187,27 @@ export function renderAdmin(container, navigate) {
     for (const house of houses) {
       const row = document.createElement('tr');
       row.className = 'clickable-row';
+      row.tabIndex = 0;
+      row.setAttribute('aria-label', `Edit House ${house.id}`);
       row.innerHTML = `
-        <td style="font-weight:600;color:var(--accent)">${house.id}</td>
-        <td><span class="status-badge ${house.status}">${getStatusLabel(house.status)}</span></td>
-        <td>${house.type || '—'}</td>
-        <td>${house.plotSize || '—'}</td>
-        <td>${house.facing || '—'}</td>
-        <td>${house.customerName || '—'}</td>
-        <td>${house.customerPhone || '—'}</td>
-        <td>${house.price || '—'}</td>
-        <td>${house.constructionStage || '—'}</td>
-        <td>${house.remarks || '—'}</td>
+        <td data-label="House" style="font-weight:600;color:var(--accent)">${house.id}</td>
+        <td data-label="Status"><span class="status-badge ${house.status}">${getStatusLabel(house.status)}</span></td>
+        <td data-label="Type">${house.type || '—'}</td>
+        <td data-label="Plot Size">${house.plotSize || '—'}</td>
+        <td data-label="Facing">${house.facing || '—'}</td>
+        <td data-label="Customer">${house.customerName || '—'}</td>
+        <td data-label="Phone">${house.customerPhone || '—'}</td>
+        <td data-label="Price">${house.price || '—'}</td>
+        <td data-label="Stage">${house.constructionStage || '—'}</td>
+        <td data-label="Remarks">${house.remarks || '—'}</td>
       `;
       row.addEventListener('click', () => showEditModal(currentProject, house.id));
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          showEditModal(currentProject, house.id);
+        }
+      });
       tbody.appendChild(row);
     }
 

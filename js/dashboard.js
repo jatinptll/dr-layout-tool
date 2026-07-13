@@ -40,7 +40,7 @@ export function renderDashboard(container, navigate) {
       ${summaryCard('Delayed Houses', delayedHouses, 'pink', '<path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 11H7v-2h4V6h2v7Zm0 3h-2v2h2v-2Z"/>')}
     </section>
 
-    <section class="dashboard-grid" aria-label="Projects">
+    <section class="dashboard-grid" aria-label="Schemes">
       ${projectCard('Antonia', 'Palanpur B.K. — 34 Houses', 'antonia-layout.png', antoniaStats)}
       ${projectCard('Aranya', 'Palanpur B.K. — 68 Houses', 'aranya-layout.png', aranyaStats)}
     </section>
